@@ -22,9 +22,13 @@ function crop(x,y,w,h){const out=document.createElement('canvas');out.width=Math
 function numbers(text){return [...text.matchAll(/\d[\d,. ]{1,14}\d|\d{2,}/g)].map(m=>Number(m[0].replace(/[^0-9]/g,''))).filter(n=>Number.isFinite(n))}
 async function read(img){let r=await worker.recognize(img);return {text:r.data.text,confidence:r.data.confidence}}
 async function scan(){if(busy||!stream||!$('video').videoWidth)return;busy=true;try{const v=$('video');cvs.width=v.videoWidth;cvs.height=v.videoHeight;ctx.drawImage(v,0,0,cvs.width,cvs.height);const W=cvs.width,H=cvs.height;const expImg=crop(Math.floor(W*.52),Math.floor(H*.91),Math.floor(W*.17),Math.floor(H*.075));const p=$('preview');p.width=expImg.width;p.height=expImg.height;p.getContext('2d').drawImage(expImg,0,0);
-const exp=await read(expImg);
-const expMatch=exp.text.match(/(?:EXP|XP)\s*[:.]?\s*([\d,.]+)/i);
+// The EXP label is fixed in the HUD; isolate the numeric area and use single-line OCR.
+const expNumberImg=crop(Math.floor(W*.552),Math.floor(H*.925),Math.floor(W*.11),Math.floor(H*.032));
+await worker.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'0123456789.,()%EXP '});
+const exp=await read(expNumberImg);
+const expMatch=exp.text.match(/(\d[\d,.]{2,12})/);
 const e=expMatch?Number(expMatch[1].replace(/[^0-9]/g,'')):null;
+await worker.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:''});
 // Inventory is normally docked in the upper-right; scan only that quadrant.
 const mImg=crop(Math.floor(W*.66),0,Math.floor(W*.34),Math.floor(H*.58));
 const mes=await read(mImg);
