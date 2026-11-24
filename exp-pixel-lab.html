@@ -1,0 +1,38 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>MapleTracker EXP Pixel Lab</title><style>body{font:16px system-ui;background:#0b1425;color:white;max-width:900px;margin:30px auto;padding:20px}canvas{max-width:100%;image-rendering:pixelated;background:#222}button,input{padding:10px;margin:8px 0}pre{white-space:pre-wrap}</style><h2>EXP Pixel Lab — thử nghiệm riêng</h2><p>Chọn ảnh chụp nguyên cửa sổ MapleStory, hoặc ảnh đã cắt thanh EXP. Công cụ thử đọc ký tự pixel 5×7, không dùng Tesseract và không tải ảnh lên server.</p><input id="file" type="file" accept="image/*"><button id="run">Phân tích ảnh</button><p id="result">Chưa có ảnh</p><canvas id="preview"></canvas><pre id="debug"></pre><script>
+const glyphs={
+'0':['111','101','101','101','101','101','111'],
+'1':['010','110','010','010','010','010','111'],
+'2':['111','001','001','111','100','100','111'],
+'3':['111','001','001','111','001','001','111'],
+'4':['101','101','101','111','001','001','001'],
+'5':['111','100','100','111','001','001','111'],
+'6':['111','100','100','111','101','101','111'],
+'7':['111','001','001','010','010','010','010'],
+'8':['111','101','101','111','101','101','111'],
+'9':['111','101','101','111','001','001','111'],
+'.':['000','000','000','000','000','010','010'],
+',':['000','000','000','000','010','010','100'],
+'%':['101','001','010','010','010','100','101']
+};
+const $=id=>document.getElementById(id);
+$('run').onclick=async()=>{
+const f=$('file').files[0];if(!f){$('result').textContent='Vui lòng chọn ảnh.';return}
+const img=await createImageBitmap(f);const c=$('preview'),g=c.getContext('2d',{willReadFrequently:true});
+c.width=img.width;c.height=img.height;g.drawImage(img,0,0);
+const x=Math.floor(img.width*.52),y=Math.floor(img.height*.91),w=Math.floor(img.width*.17),h=Math.floor(img.height*.07);
+if(img.width<500){$('result').textContent='Ảnh đã cắt: cần ảnh nguyên cửa sổ game để định vị tự động.';return}
+const data=g.getImageData(x,y,w,h).data;
+let best={score:-1,text:''};
+for(const threshold of [125,175,215]){
+const bits=[];for(let yy=0;yy<h;yy++){const row=[];for(let xx=0;xx<w;xx++){const i=(yy*w+xx)*4;row.push((.299*data[i]+.587*data[i+1]+.114*data[i+2])>threshold?1:0)}bits.push(row)}
+// Column projection, then nearest-neighbor glyph matching. This is a prototype, not validated OCR.
+const active=Array.from({length:w},(_,xx)=>bits.some(row=>row[xx]));
+let groups=[],st=-1;for(let xx=0;xx<=w;xx++){if(xx<w&&active[xx]&&st<0)st=xx;if((xx===w||!active[xx])&&st>=0){if(xx-st>=2)groups.push([st,xx]);st=-1}}
+let text='',scores=[];for(const [l,r] of groups){let top=h,bot=-1;for(let yy=0;yy<h;yy++)for(let xx=l;xx<r;xx++)if(bits[yy][xx]){top=Math.min(top,yy);bot=Math.max(bot,yy)}
+if(bot<top)continue;let candidate=['',-1];for(const [ch,rows] of Object.entries(glyphs)){let matches=0;for(let gy=0;gy<7;gy++)for(let gx=0;gx<3;gx++){let xx=Math.min(r-1,l+Math.floor((gx+.5)*(r-l)/3)),yy=Math.min(bot,top+Math.floor((gy+.5)*(bot-top+1)/7));if(bits[yy][xx]===Number(rows[gy][gx]))matches++}if(matches>candidate[1])candidate=[ch,matches]}text+=candidate[0];scores.push(candidate[1]/21)}
+const score=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0;if(score>best.score)best={score,text,threshold,groups:groups.length};
+}
+$('result').textContent='Kết quả thử: '+(best.text||'Không tìm được ký tự')+' — điểm khớp mẫu '+Math.round(best.score*100)+'% (chưa xác nhận EXP)';
+$('debug').textContent=JSON.stringify(best,null,2)+'\nĐây là bản thử nghiệm ký tự mẫu; không sử dụng để tính EXP/h khi chưa đối chiếu ảnh thật.';
+};
+</script></html>
