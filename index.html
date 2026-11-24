@@ -23,12 +23,12 @@ function numbers(text){return [...text.matchAll(/\d[\d,. ]{1,14}\d|\d{2,}/g)].ma
 async function read(img){let r=await worker.recognize(img);return {text:r.data.text,confidence:r.data.confidence}}
 async function scan(){if(busy||!stream||!$('video').videoWidth)return;busy=true;try{const v=$('video');cvs.width=v.videoWidth;cvs.height=v.videoHeight;ctx.drawImage(v,0,0,cvs.width,cvs.height);const W=cvs.width,H=cvs.height;const expImg=crop(Math.floor(W*.52),Math.floor(H*.91),Math.floor(W*.17),Math.floor(H*.075));const p=$('preview');p.width=expImg.width;p.height=expImg.height;p.getContext('2d').drawImage(expImg,0,0);
 const exp=await read(expImg);
-const expMatch=exp.text.match(/(?:EXP|XP)\\s*[:.]?\\s*([\\d,.]+)/i);
+const expMatch=exp.text.match(/(?:EXP|XP)\s*[:.]?\s*([\d,.]+)/i);
 const e=expMatch?Number(expMatch[1].replace(/[^0-9]/g,'')):null;
 // Inventory is normally docked in the upper-right; scan only that quadrant.
 const mImg=crop(Math.floor(W*.66),0,Math.floor(W*.34),Math.floor(H*.58));
 const mes=await read(mImg);
-const mMatch=mes.text.match(/(?:MESOS?|MESO)\\s*[:.]?\\s*([\\d,.]+)/i);
+const mMatch=mes.text.match(/(?:MESOS?|MESO)\s*[:.]?\s*([\d,.]+)/i);
 const m=mMatch?Number(mMatch[1].replace(/[^0-9]/g,'')):null;
 $('expread').textContent=e!==null?fmt(e):'Không xác định';$('mesoread').textContent=m!==null?fmt(m):'Không xác định';
 const minutes=(Date.now()-begin)/60000; // Rates only after at least one minute and a validated reading
